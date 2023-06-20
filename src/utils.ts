@@ -1,11 +1,13 @@
+import * as chalk from 'chalk';
 import * as fs from 'fs';
-import * as fetch from 'node-fetch';
+import fetch from 'node-fetch';
 import { Headers } from 'node-fetch';
 import {
   Source,
   GraphQLSchema,
   buildClientSchema,
   getIntrospectionQuery,
+  graphql
 } from 'graphql';
 
 export function existsSync(filePath: string): boolean {
@@ -61,4 +63,32 @@ export function graphqlRequest(
       throw Error(`${responce.status} ${responce.statusText}\n${body}`);
     });
   });
+}
+
+
+const ROOTBEER_API_BASE_URL = 'https://rootbeercomputer--api-main.modal.run'
+
+export const createMockData = async (schema: GraphQLSchema, newTypes, extendedFields) => {
+  let introspection = null;
+  try {
+    introspection = await graphql({
+      schema,
+      source: getIntrospectionQuery()
+    })
+  } catch (error) {
+    console.log(chalk.red(error));
+    process.exit(1);
+  };
+  try {
+    const response = await fetch(ROOTBEER_API_BASE_URL, {
+      method: 'post',
+      body: JSON.stringify({introspection, newTypes,
+        extendedFields}, null, 2),
+      headers: {'Content-Type': 'application/json'}
+    });
+    return await response.json()
+  } catch (error) {
+    console.log(chalk.red(error));
+    process.exit(1);
+  }
 }

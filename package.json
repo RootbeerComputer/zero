@@ -1,12 +1,12 @@
 {
-  "name": "graphql-faker",
-  "version": "2.0.0-rc.25",
-  "description": "Mock or extend your GraphQL API with faked data. No coding required",
+  "name": "@rootbeer/zero",
+  "version": "0.0.4",
+  "description": "Mock your GraphQL API with AI generated faked data... zero config",
   "main": "dist/index.js",
   "bin": {
-    "graphql-faker": "dist/index.js"
+    "zero": "dist/index.js"
   },
-  "engines": {
+  "engineStrict": {
     "node": ">= 12.x"
   },
   "scripts": {
@@ -15,7 +15,7 @@
     "start": "nodemon src/index.ts",
     "debug": "ts-node --inspect --compilerOptions '{\"inlineSources\":true}' src/index.ts",
     "start:editor": "webpack-dev-server --config webpack.config.js",
-    "build:editor": "webpack -p --config webpack.config.js",
+    "build:editor": "NODE_OPTIONS='--openssl-legacy-provider' webpack -p --config webpack.config.js",
     "build:typescript": "tsc",
     "copy:graphql": "cp src/*.graphql dist/",
     "copy:editor": "mkdir \"dist/editor\" && cp src/editor/*.html dist/editor && cp src/editor/*.js dist/editor && cp src/editor/*.css dist/editor && cp src/editor/*.svg dist/editor",
@@ -25,18 +25,18 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/APIs-guru/graphql-faker.git"
+    "url": "git+https://github.com/RootbeerComputer/zero.git"
   },
-  "author": "APIs.guru <founders@apis.guru>",
+  "author": "Rootbeer Computer Inc.",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/APIs-guru/graphql-faker/issues"
+    "url": "https://github.com/RootbeerComputer/zero/issues"
   },
-  "homepage": "https://github.com/APIs-guru/graphql-faker#readme",
+  "homepage": "https://github.com/RootbeerComputer/zero#readme",
   "devDependencies": {
     "@types/body-parser": "1.19.0",
     "@types/cors": "2.8.10",
-    "@types/faker": "5.5.1",
+    "@types/node-fetch": "^2.6.4",
     "@types/react": "16.9.35",
     "@types/react-dom": "16.9.8",
     "@types/yargs": "15.0.5",
@@ -65,7 +65,6 @@
     "cors": "2.8.5",
     "express": "4.17.1",
     "express-graphql": "0.12.0",
-    "faker": "5.5.3",
     "graphql": "14.7.0",
     "graphql-voyager": "1.0.0-rc.31",
     "moment": "2.29.1",

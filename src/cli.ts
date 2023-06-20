@@ -14,7 +14,7 @@ function builder(cmd) {
   return cmd
     .positional('SDLFile', {
       describe:
-        'path to file with SDL. If this argument is omitted Faker uses default file name',
+        'path to file with SDL. If this argument is omitted Zero uses default file name',
       type: 'string',
       nargs: 1,
     })
@@ -99,9 +99,9 @@ const epilog = `Examples:
 # Mock GraphQL API based on example SDL and open interactive editor
 $0 --open
 
-# Extend real data from SWAPI with faked data based on extension SDL
-$0 ./ext-swapi.graphql --extend http://swapi.apis.guru/
+# Mock GraphQL API based on a local graphQL schema SDL and open interactive editor
+$0 schema.graphql --open
 
-# Extend real data from GitHub API with faked data based on extension SDL
+# Extend real data from GitHub's GraphQL API with faked data based on local extension SDL file
 $0 ./ext-gh.graphql --extend https://api.github.com/graphql \\
 --header "Authorization: bearer <TOKEN>"`;

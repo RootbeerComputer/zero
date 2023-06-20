@@ -9,13 +9,13 @@ import * as open from 'open';
 import * as cors from 'cors';
 import * as bodyParser from 'body-parser';
 import { graphqlHTTP } from 'express-graphql';
-import { Source, printSchema } from 'graphql';
+import { Source, printSchema, GraphQLSchema } from 'graphql'; // astFromValue
 import { express as voyagerMiddleware } from 'graphql-voyager/middleware';
 
 import { parseCLI } from './cli';
 import { getProxyExecuteFn } from './proxy';
-import { existsSync, readSDL, getRemoteSchema } from './utils';
-import { fakeTypeResolver, fakeFieldResolver } from './fake_schema';
+import { existsSync, readSDL, getRemoteSchema, createMockData } from './utils';
+import { fakeTypeResolver, fakeFieldResolver, database, partialsDatabase, unsassignedPartials, unsassignedFakeObjects } from './resolvers';
 import { ValidationErrors, buildWithFakeDefinitions } from './fake_definition';
 
 const log = console.log;
@@ -79,7 +79,7 @@ parseCLI((options) => {
   }
 });
 
-function runServer(
+async function runServer(
   options,
   userSDL: Source,
   remoteSDL?: Source,
@@ -91,18 +91,34 @@ function runServer(
     origin: options.corsOrigin,
   };
   const app = express();
-
-  let schema;
+  
+  let schema: GraphQLSchema;
+  let newTypes: {};
+  let extendedFields: {};
   try {
-    schema = remoteSDL
-      ? buildWithFakeDefinitions(remoteSDL, userSDL)
-      : buildWithFakeDefinitions(userSDL);
+    const s = remoteSDL
+    ? buildWithFakeDefinitions(remoteSDL, userSDL)
+    : buildWithFakeDefinitions(userSDL);
+    schema = s.schema;
+    newTypes = s.newTypes;
+    extendedFields = s.extendedFields;
   } catch (error) {
     if (error instanceof ValidationErrors) {
       prettyPrintValidationErrors(error);
       process.exit(1);
+    } else {
+      throw error;
     }
   }
+
+  console.log("Starting to load from server")
+  const {newDatabase, newPartialsDatabase} = await createMockData(schema, newTypes, extendedFields);
+  console.log(newDatabase)
+  console.log(newPartialsDatabase)
+  Object.assign(database,newDatabase); // graphql type is the key and then value is another dict from id to object
+  Object.assign(partialsDatabase,newPartialsDatabase);
+  Object.assign(unsassignedPartials, Object.fromEntries(Object.entries(partialsDatabase).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
+  Object.assign(unsassignedFakeObjects, Object.fromEntries(Object.entries(database).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
 
   app.options('/graphql', cors(corsOptions));
   app.use(
@@ -130,9 +146,10 @@ function runServer(
       const fileName = userSDL.name;
       fs.writeFileSync(fileName, req.body);
       userSDL = new Source(req.body, fileName);
-      schema = remoteSDL
+      // TODO: tell rootbeer to generate new mock data
+      ({schema} = remoteSDL
         ? buildWithFakeDefinitions(remoteSDL, userSDL)
-        : buildWithFakeDefinitions(userSDL);
+        : buildWithFakeDefinitions(userSDL))
 
       const date = new Date().toLocaleString();
       log(
@@ -169,7 +186,7 @@ function runServer(
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  log(`\n${chalk.green('✔')} Your GraphQL Fake API is ready to use 🚀
+  log(`\n${chalk.green('✔')} Your GraphQL Zero API is ready to use 🚀
   Here are your links:
 
   ${chalk.blue('❯')} Interactive Editor: http://localhost:${port}/editor

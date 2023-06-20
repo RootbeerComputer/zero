@@ -106,7 +106,7 @@ class FakeEditor extends React.Component<any, FakeEditorState> {
 
   updateSDL(value, noError = false) {
     try {
-      const schema = this.buildSchema(value);
+      const {schema} = this.buildSchema(value);
       this.setState((prevState) => ({
         ...prevState,
         schema,
@@ -163,7 +163,8 @@ class FakeEditor extends React.Component<any, FakeEditorState> {
     if (this.state.error) this.updateSDL(val);
     let unsavedSchema = null as GraphQLSchema | null;
     try {
-      unsavedSchema = this.buildSchema(val, { skipValidation: true });
+      const {schema} = this.buildSchema(val, { skipValidation: true });
+      unsavedSchema = schema;
     } catch (_) {}
 
     this.setState((prevState) => ({
