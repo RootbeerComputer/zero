@@ -10,7 +10,6 @@ import * as cors from 'cors';
 import * as bodyParser from 'body-parser';
 import { graphqlHTTP } from 'express-graphql';
 import { Source, printSchema, GraphQLSchema } from 'graphql'; // astFromValue
-import { express as voyagerMiddleware } from 'graphql-voyager/middleware';
 
 import { parseCLI } from './cli';
 import { getProxyExecuteFn } from './proxy';
@@ -165,16 +164,6 @@ async function runServer(
   });
 
   app.use('/editor', express.static(path.join(__dirname, 'editor')));
-  app.use('/voyager', voyagerMiddleware({ endpointUrl: '/graphql' }));
-  app.use(
-    '/voyager.worker.js',
-    express.static(
-      path.join(
-        __dirname,
-        '../node_modules/graphql-voyager/dist/voyager.worker.js',
-      ),
-    ),
-  );
 
   const server = app.listen(port);
 
@@ -191,7 +180,6 @@ async function runServer(
 
   ${chalk.blue('❯')} Interactive Editor: http://localhost:${port}/editor
   ${chalk.blue('❯')} GraphQL API:        http://localhost:${port}/graphql
-  ${chalk.blue('❯')} GraphQL Voyager:    http://localhost:${port}/voyager
 
   `);
 

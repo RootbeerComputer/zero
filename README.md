@@ -9,6 +9,7 @@
 [![Discord](https://img.shields.io/discord/1122949106558570648)](https://discord.gg/3ASBTJWgGS)
 
 </div>
+
 Mock your GraphQL API with generative AI fake data... zero config. Powered by LLMs that look at your schema and populate a "parallel universe" of fake data so you can prototype and test your frontend w/o implementing the backend or manually entering a bunch of data.
 
 Use for your next prototyping session, product demo, or QA bug bash!
@@ -17,12 +18,20 @@ Use for your next prototyping session, product demo, or QA bug bash!
 npm install -g @rootbeer/zero
 zero schema.graphql
 ```
+
 Then swap out the URL in your frontend code with
+
 ```
 http://localhost:9000
 ```
 
 Note: We don't support persisted queries yet
+
+To proxy to a real graphql server. Write your SDL file with extended types then use this command.
+
+```
+zero extended_schema.graphql --extend https://spacex-production.up.railway.app
+```
 
 ## Motivation
 
