@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "preserveConstEnums": true,
+    "strictNullChecks": true,
+    "sourceMap": true,
+    "target": "es5",
+    "outDir": "dist",
+    "moduleResolution": "node",
+    "lib": ["es2017", "dom"],
+    "jsx": "react"
+  },
+  "exclude": ["node_modules", "dist"],
+  "include": ["./custom.d.ts", "**/*.tsx", "**/*.ts"]
+}
