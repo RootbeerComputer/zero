@@ -102,6 +102,9 @@ $0 --open
 # Mock GraphQL API based on a local graphQL schema SDL and open interactive editor
 $0 schema.graphql --open
 
-# Extend real data from GitHub's GraphQL API with faked data based on local extension SDL file
-$0 ./ext-gh.graphql --extend https://api.github.com/graphql \\
---header "Authorization: bearer <TOKEN>"`;
+# Extend real data from (knockoff) SpaceX's GraphQL API with faked data based on local extension SDL file
+$0 extended_schema.graphql --extend https://spacex-production.up.railway.app/ \\
+--header "Authorization: bearer <TOKEN>"
+
+# Extend real data from (knockoff) SpaceX's GraphQL API with example extended SDL
+$0 --extend https://spacex-production.up.railway.app`;
