@@ -2,7 +2,6 @@ import './css/app.css';
 import './css/codemirror.css';
 import './GraphQLEditor/editor.css';
 import 'graphiql/graphiql.css';
-import 'graphql-voyager/dist/voyager.css';
 
 import GraphiQL from 'graphiql';
 import * as React from 'react';
@@ -15,8 +14,6 @@ import { buildWithFakeDefinitions } from '../fake_definition';
 
 import GraphQLEditor from './GraphQLEditor/GraphQLEditor';
 import { ConsoleIcon, EditIcon, GithubIcon, VoyagerIcon } from './icons';
-
-import { Voyager } from 'graphql-voyager';
 
 type FakeEditorState = {
   value: string | null;
@@ -262,17 +259,6 @@ class FakeEditor extends React.Component<any, FakeEditorState> {
             })}
           >
             <GraphiQL fetcher={(e) => this.graphQLFetcher(e)} schema={schema} />
-          </div>
-          <div
-            className={classNames('tab-content', {
-              '-active': activeTab === 2,
-            })}
-          >
-            <Voyager
-              introspection={(e) => this.graphQLFetcher({ query: e })}
-              hideSettings={activeTab !== 2}
-              workerURI="/voyager.worker.js"
-            />
           </div>
         </div>
       </div>

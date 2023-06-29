@@ -49,16 +49,15 @@ Credit: This repo is a hard fork of [graphql-faker](https://github.com/graphql-k
 
 Releasing super early and unpolished. There's a 20% chance this works with your GraphQL schema. If it fails, try an easier schema :flushed: If it still fails, make an issue!
 
+- [x] Optionally proxy an existing GraphQL API to extend it with faked data
 - [x] Runs as local graphql server
-- [x] queries
+- [x] queries (using heuristics for arguments)
 - [ ] persisted queries
-- [ ] field arguments and AI inferred business logic!
-- [ ] Support for proxying existing GraphQL API and extending it with faked data
+- [ ] field arguments for leaf fields (using heuristics)
 - [ ] custom scalars (starting with popular standards)
 - [ ] directives (starting with popular standards)
 - [ ] mutations (including file uploads and auth)
 - [ ] subscriptions
-- [ ] prompting for more control
 - [ ] graphql connections spec
 
 ## How it works

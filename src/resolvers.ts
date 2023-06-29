@@ -70,6 +70,39 @@ export const fakeTypeResolver: GraphQLTypeResolver<unknown, unknown> = async (
   }
 };
 
+const queryHeuristics = (data: any[], args: any) => {
+  let ret = data;
+  const order = args.order || args.orderBy;
+  const sort = args.sort || args.orderDirection;
+  const offset = args.offset || args.skip;
+  const limit = args.limit;
+  if (order && sort) {
+    if (ret.length > 0) {
+      if (order in ret[0]) {
+        ret.sort((a, b) => {
+          if (sort === "asc" || sort == "ASC") {
+            return a[order] < b[order] ? -1 : 1;
+          } else if (sort === "desc" || sort === "DESC") {
+            return b[order] < a[order] ? -1 : 1;
+          } else {
+            throw new Error("Invalid sort value. Must be 'asc' or 'desc'.");
+          }
+        });
+      } else {
+        console.log(`${order} field not in object`)
+      }
+    }
+  }
+  if (offset && limit) {
+    ret = ret.slice(offset, offset + limit);
+  } else if (limit) {
+    ret = ret.slice(0, limit);
+  } else if (offset) {
+    ret = ret.slice(offset);
+  }
+  return ret
+}
+
 export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
   source,
   args,
@@ -84,16 +117,14 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     resolved = source[info.path.key]; // alias value // TODO when use info.path.key vs fieldName? What's the difference?
   }
 
-  if (resolved !== undefined) {
-    // TODO idk, maybe i want to add an && condition that this is a proxied object
-    return resolved;
-  }
-
   if (resolved instanceof Error) {
     return resolved;
   }
 
   if (parentType === schema.getQueryType()) {
+    if (resolved !== undefined) {
+      return resolved; // its probably a object from the proxy server
+    }
     // for now, we assume that a query returns a single object or all objects of its return type.
     // We don't support pagination yet. Nor any kind of filtering / sorting / biz logic. Nor non id params The AI will perform such tasks soon.
     let t = fieldDef.type
@@ -118,7 +149,7 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
             throw new Error(`Type ${t.name} not in database`)
           }
         }
-        return out
+        return queryHeuristics(out, args)
       }
     } else {
       if (!isObjectType(t)) {
@@ -145,11 +176,12 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         }
         return database[t.name][args.id]
       } else {
-        return Object.values(database[t.name]) // Currently, we return all objects matching a type when you query. In the future, we'll support pagination and filtering.
+        const out = Object.values(database[t.name])
+        return queryHeuristics(out, args)
       }
     }
   } else if (isNonNullType(fieldDef.type) ? isLeafType(fieldDef.type.ofType) : isLeafType(fieldDef.type)) {
-    if ((fieldDef.extensions['isExtensionField'])) {
+    if ((fieldDef.extensions && fieldDef.extensions['isExtensionField'])) {
       if (resolved !== undefined) {
         return resolved;
       }
@@ -181,7 +213,7 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     }
   } else { // cur field is a reference to another object
     if (parentType === schema.getQueryType()) throw new Error("shouldn't be here")
-    if ((fieldDef.extensions['isExtensionField']) && resolved === undefined) {
+    if ((fieldDef.extensions && fieldDef.extensions['isExtensionField']) && resolved === undefined) {
       // TODO if source[info.path.key] is assigned we should cehck that its the same as the value in unassignedFakeObject?
       // or nah since even though this is a non extension object, it could still be a mock
       //        if list type then need to pick out multiple

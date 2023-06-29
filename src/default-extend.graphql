@@ -5,7 +5,7 @@
 
 extend type Query {
   pet: Pet
-  pets: [Pet]
+  pets(limit: Int, offset: Int, order: String, sort: String): [Pet]
 }
 
 type Pet {
