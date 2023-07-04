@@ -1,5 +1,5 @@
 <div align="center">
-:rotating_light: Experimental and probably won't work :warning: <a href="https://www.loom.com/share/abad2cdf325e4e0b9addea1e14406166?sid=484ab008-e9ae-4681-be93-ec419d9eec90">[Demo Video]</a> 
+:rotating_light: Experimental :warning: <a href="https://www.loom.com/share/abad2cdf325e4e0b9addea1e14406166?sid=484ab008-e9ae-4681-be93-ec419d9eec90">[Demo Video]</a> 
 </div>
 
 # GraphQL Zero
@@ -69,3 +69,5 @@ This CLI tool sends our server an introspection AST of your GraphQL SDL (includi
 All PRs will be reviewed within 24 hours!
 
 I'd especially appreciate bugfixes, examples, tests, federation support, quality of life improvements, and render/heroku/docker build things!
+
+For bigger contributions, we have a [GitHub Project](https://github.com/orgs/RootbeerComputer/projects/2)
