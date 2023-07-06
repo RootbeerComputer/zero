@@ -25,7 +25,7 @@ import {
 
 type DatabaseType = {
   [key: string]: {
-    [key: number]: object;
+    [key: number]: any;
   };
 }
 export const database: DatabaseType = {}; // Map<typeName, Map<id, object>>
@@ -131,7 +131,26 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     let shouldReturnNonnull = false;
     if (isNonNullType(t)) t = t.ofType; shouldReturnNonnull = true;
     // TODO: throw error when user forgot to include a arg that the schema says they should incldue!
-    if (!isListType(t) && !args.id) throw new Error("Query that returns a single object must have a id param. Its on our roadmap to infer biz logic so you don't get this error.")
+    if (!isListType(t) && !args.id) {
+      if (t.name.endsWith("Connection")) {
+        const underlyingTypeName = t.name.replace(/Connection$/, "");
+        const objs = Object.values(database[underlyingTypeName]);
+        objs.sort((a, b) => a.id - b.id);
+        return {
+          edges: objs.map((obj) => ({cursor: obj.id, node: obj})),
+          nodes: objs,
+          // filters: 
+          pageInfo: {
+            startCursor: objs[0].id,
+            endCursor: objs[objs.length - 1].id,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          }
+        }
+      } else {
+        throw new Error("Query that returns a single object must have a id param. Its on our roadmap to infer biz logic so you don't get this error.")
+      }
+    }
     if (isListType(t) && args.id) throw new Error("Query that returns a list should not have id param. This shouldn't be encountered. Open an issue on github.")
     if (isListType(t)) t = t.ofType
     if (isNonNullType(t)) t = t.ofType
@@ -195,7 +214,8 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
       return assignedPartialFakeObject[source["id"]][info.path.key]
     }
     if (resolved === undefined && isNonNullType(fieldDef.type)) {
-      throw new Error("Type should be in parent field since its a leaf and non root")
+      console.log(source)
+      throw new Error("Type should be in parent field since it's a leaf and non root")
     }
     // TODO handle undefined list elements when should be [Int!]! or [Int!]
     if (isListType(isNonNullType(fieldDef.type) ? fieldDef.type.ofType : fieldDef.type)) {
@@ -254,6 +274,9 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         allowNull = false;
       }
       listElementType = assertCompositeType(listElementType)
+      if (parentType.name.endsWith("Connection") && info.path.key === "nodes") {
+        return source[info.path.key]
+      }
       return source[info.path.key].map((id) => {
         if (allowNull && id === null) {
           return null
