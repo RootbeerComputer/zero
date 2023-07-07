@@ -148,7 +148,18 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
           }
         }
       } else {
-        throw new Error("Query that returns a single object must have a id param. Its on our roadmap to infer biz logic so you don't get this error.")
+        // TODO: these are heuristics, we should ask AI to infer biz logic
+        if (Object.keys(args).length === 0)
+          return Object.values(database[t.name])[0]
+        else if (Object.keys(args).length === 1) {
+          const lookupField = Object.keys(args)[0]
+          const o = Object.values(database[t.name]).find((obj) => obj[lookupField] === args[lookupField])
+          if (o === null && shouldReturnNonnull)
+            throw new Error(`Object of type ${t.name} with field ${lookupField} equal to ${args[lookupField]} not in database`)
+          return o
+        } else {
+          throw new Error("Query that returns a single object must have a id param. Its on our roadmap to infer biz logic so you don't get this error.")
+        }
       }
     }
     if (isListType(t) && args.id) throw new Error("Query that returns a list should not have id param. This shouldn't be encountered. Open an issue on github.")
@@ -214,7 +225,6 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
       return assignedPartialFakeObject[source["id"]][info.path.key]
     }
     if (resolved === undefined && isNonNullType(fieldDef.type)) {
-      console.log(source)
       throw new Error("Type should be in parent field since it's a leaf and non root")
     }
     // TODO handle undefined list elements when should be [Int!]! or [Int!]
@@ -274,7 +284,10 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         allowNull = false;
       }
       listElementType = assertCompositeType(listElementType)
-      if (parentType.name.endsWith("Connection") && (info.path.key === "nodes" || info.path.key === "edges") && typeof source[info.path.key] === "object") {
+      if (source[info.path.key].length === 0) {
+        return []
+      }
+      if (parentType.name.endsWith("Connection") && (info.path.key === "nodes" || info.path.key === "edges") && typeof source[info.path.key][0] === "object") {
         return source[info.path.key]
       }
       return source[info.path.key].map((id) => {
