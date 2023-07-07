@@ -274,7 +274,7 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         allowNull = false;
       }
       listElementType = assertCompositeType(listElementType)
-      if (parentType.name.endsWith("Connection") && info.path.key === "nodes") {
+      if (parentType.name.endsWith("Connection") && (info.path.key === "nodes" || info.path.key === "edges") && typeof source[info.path.key] === "object") {
         return source[info.path.key]
       }
       return source[info.path.key].map((id) => {
@@ -284,6 +284,13 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         return getObjectFromDatabaseWithId(id, listElementType, schema, source)
       })
     } else {
+      if (parentType.name.endsWith("Connection") && info.path.key === "pageInfo" && typeof source[info.path.key] === "object") {
+        return source[info.path.key]
+      }
+      if (parentType.name.endsWith("Edge") && (info.path.key === "node") && typeof source[info.path.key] === "object") { // TODO kind of wrong since we need to enforce that parentType's parentType name ends with "Connection"
+        // TODO also, according to spec, edge type doesn't have to end in Edge. It could be called something else
+        return source[info.path.key]
+      }
       type = assertCompositeType(type)
       const id = source[info.path.key]; // .id?
       return getObjectFromDatabaseWithId(id, type, schema, source)
@@ -309,6 +316,8 @@ function getObjectFromDatabaseWithId(id: any, t: GraphQLCompositeType, schema: G
   //   throw new Error(`id should be a number but instead it is ${id} on the object ${JSON.stringify(source)} for fieldDef.type ${fieldDef.type}`);
   if (id === null || id === undefined)
     throw new Error(`id should not be null but instead it is ${id} on the object ${JSON.stringify(source)}`);
+  if (typeof id === 'object')
+    throw new Error(`id should be a number but instead it is ${id} on the object ${JSON.stringify(source)}`);
   // TODO does this support abstract type?
   let obj = null;
   if (isAbstractType(t)) {
