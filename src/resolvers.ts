@@ -112,7 +112,7 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
   const { schema, parentType, fieldName } = info;
   const fieldDef = parentType.getFields()[fieldName];
 
-  let resolved = await defaultFieldResolver(source, args, context, info);
+  let resolved: any = await defaultFieldResolver(source, args, context, info);
   if (resolved === undefined && source && typeof source === 'object') {
     resolved = source[info.path.key]; // alias value // TODO when use info.path.key vs fieldName? What's the difference?
   }
@@ -283,7 +283,6 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         listElementType = listElementType.ofType
         allowNull = false;
       }
-      listElementType = assertCompositeType(listElementType)
       if (source[info.path.key].length === 0) {
         return []
       }
@@ -294,7 +293,7 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         if (allowNull && id === null) {
           return null
         }
-        return getObjectFromDatabaseWithId(id, listElementType, schema, source)
+        return getObjectFromDatabaseWithId(id, assertCompositeType(listElementType), schema, source)
       })
     } else {
       if (parentType.name.endsWith("Connection") && info.path.key === "pageInfo" && typeof source[info.path.key] === "object") {

@@ -19,13 +19,13 @@ export function buildWithFakeDefinitions(
   options?: { skipValidation: boolean },
 ): {schema: GraphQLSchema, newTypes: {}, extendedFields: {}} {
   const skipValidation = options?.skipValidation ?? false;
-  const schemaAST = parseSDL(schemaSDL);
+  const schemaAST = parse(schemaSDL);
   let schema = buildASTSchema(schemaAST, {assumeValidSDL: true}); // assumeValidSDL lets us ignore custom directives
 
   const newTypes = {}
   const extendedFields = {}
   if (extensionSDL != null) {
-    const extensionAST = parseSDL(extensionSDL);
+    const extensionAST = parse(extensionSDL);
     if (!skipValidation) { 
       const errors = validateSDL(extensionAST, schema);
       if (errors.length !== 0) {
@@ -34,7 +34,6 @@ export function buildWithFakeDefinitions(
     }
     schema = extendSchema(schema, extensionAST, {
       assumeValid: true,
-      commentDescriptions: true,
     });
 
     for (const type of Object.values(schema.getTypeMap())) {
@@ -101,11 +100,4 @@ export class ValidationErrors extends Error {
       this.stack = new Error(message).stack;
     }
   }
-}
-
-function parseSDL(sdl: Source) {
-  return parse(sdl, {
-    allowLegacySDLEmptyFields: true,
-    allowLegacySDLImplementsInterfaces: true,
-  });
 }
