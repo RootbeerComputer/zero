@@ -14,6 +14,8 @@ Mock your GraphQL API with generative AI fake data... zero config. Powered by LL
 
 Use for your next prototyping session, product demo, or QA bug bash!
 
+Example schemas are provided in the `examples` folder
+
 ```
 npm install -g @rootbeer/zero
 zero schema.graphql
