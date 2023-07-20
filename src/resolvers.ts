@@ -316,7 +316,6 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
           return getObjectFromDatabaseWithId(id, underlyingType, schema, source)
         })
         objs = queryHeuristics(objs, args)
-        console.log(connectionObj)
         const connectionObjsEdges = connectionObj['edges'].map((id) => {
           if (allowNull && id === null) {
             return null
@@ -325,7 +324,6 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
           if (isNonNullType(edgeType)) edgeType = assertNonNullType(edgeType).ofType
           if (isListType(edgeType)) edgeType = assertListType(edgeType).ofType
           if (isNonNullType(edgeType)) edgeType = assertNonNullType(edgeType).ofType
-          console.log(edgeType)
           edgeType = assertObjectType(edgeType)
           return getObjectFromDatabaseWithId(id, edgeType, schema, source)
         })
