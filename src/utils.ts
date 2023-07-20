@@ -86,6 +86,10 @@ export const createMockData = async (schema: GraphQLSchema, newTypes, extendedFi
         extendedFields}, null, 2),
       headers: {'Content-Type': 'application/json'}
     });
+    if (!response.ok) {
+      console.log(chalk.red("The server had an error processing your graphql schema. Please report this bug on github."));
+      process.exit(1);  
+    }
     return await response.json()
   } catch (error) {
     console.log(chalk.red(error));

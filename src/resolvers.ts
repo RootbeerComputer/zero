@@ -21,6 +21,8 @@ import {
   assertListType,
   GraphQLCompositeType,
   GraphQLSchema,
+  GraphQLObjectType,
+  assertNonNullType,
 } from 'graphql';
 
 type DatabaseType = {
@@ -72,18 +74,19 @@ export const fakeTypeResolver: GraphQLTypeResolver<unknown, unknown> = async (
 
 const queryHeuristics = (data: any[], args: any) => {
   let ret = data;
-  const order = args.order || args.orderBy;
-  const sort = args.sort || args.orderDirection;
+  const order = args.order || args.orderBy || args.sortKey;
+  const sort = args.sort || args.orderDirection || (args.reverse ? "desc" : undefined);
   const offset = args.offset || args.skip;
-  const limit = args.limit;
+  const limit = args.limit || args.first;
   if (order && sort) {
     if (ret.length > 0) {
-      if (order in ret[0]) {
+      const actualKey = order in ret[0] ? order : (order.toLowerCase() in ret[0] ? order.toLowerCase() : undefined);
+      if (actualKey) {
         ret.sort((a, b) => {
           if (sort === "asc" || sort == "ASC") {
-            return a[order] < b[order] ? -1 : 1;
+            return a[actualKey] < b[actualKey] ? -1 : 1;
           } else if (sort === "desc" || sort === "DESC") {
-            return b[order] < a[order] ? -1 : 1;
+            return b[actualKey] < a[actualKey] ? -1 : 1;
           } else {
             throw new Error("Invalid sort value. Must be 'asc' or 'desc'.");
           }
@@ -125,8 +128,6 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     if (resolved !== undefined) {
       return resolved; // its probably a object from the proxy server
     }
-    // for now, we assume that a query returns a single object or all objects of its return type.
-    // We don't support pagination yet. Nor any kind of filtering / sorting / biz logic. Nor non id params The AI will perform such tasks soon.
     let t = fieldDef.type
     let shouldReturnNonnull = false;
     if (isNonNullType(t)) t = t.ofType; shouldReturnNonnull = true;
@@ -134,9 +135,12 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     if (!isListType(t) && !args.id) {
       if (t.name.endsWith("Connection")) {
         const underlyingTypeName = t.name.replace(/Connection$/, "");
-        const objs = Object.values(database[underlyingTypeName]);
-        objs.sort((a, b) => a.id - b.id);
+        const objs = queryHeuristics(
+          Object.values(database[underlyingTypeName]).sort((a, b) => a.id - b.id),
+          args
+        );
         return {
+          // todo support ai generated primitives on this top level query Connection object and its edges/pageInfo
           edges: objs.map((obj) => ({cursor: obj.id, node: obj})),
           nodes: objs,
           // filters: 
@@ -297,6 +301,48 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         return getObjectFromDatabaseWithId(id, listElementType, schema, source)
       })
     } else {
+      if (type.name.endsWith("Connection")) { // note: an alternative impl could be to pass down Connection args via context
+        type = assertObjectType(type)
+        type.getFields()
+        const underlyingTypeName = type.name.replace(/Connection$/, "");
+        const underlyingType = schema.getType(underlyingTypeName) // todo assert this matches up with return type of the nodes field
+        if (!underlyingType) throw new Error(`Type ${underlyingTypeName} not in schema`)
+        if (!isCompositeType(underlyingType)) throw new Error(`Type ${underlyingTypeName} is not a composite type for connection ${type.name}`)
+        const connectionObj = getObjectFromDatabaseWithId(source[info.path.key],type,schema, source);
+        let objs = connectionObj['nodes'].map((id) => {
+          if (allowNull && id === null) {
+            return null
+          }
+          return getObjectFromDatabaseWithId(id, underlyingType, schema, source)
+        })
+        objs = queryHeuristics(objs, args)
+        console.log(connectionObj)
+        const connectionObjsEdges = connectionObj['edges'].map((id) => {
+          if (allowNull && id === null) {
+            return null
+          }
+          let edgeType = (type as GraphQLObjectType).getFields()['edges'].type
+          if (isNonNullType(edgeType)) edgeType = assertNonNullType(edgeType).ofType
+          if (isListType(edgeType)) edgeType = assertListType(edgeType).ofType
+          if (isNonNullType(edgeType)) edgeType = assertNonNullType(edgeType).ofType
+          console.log(edgeType)
+          edgeType = assertObjectType(edgeType)
+          return getObjectFromDatabaseWithId(id, edgeType, schema, source)
+        })
+        return {
+          ...connectionObj, // include this b/c there might be some ai generated primitives to fill in
+          edges: objs.map(
+            (obj) => ({...(connectionObjsEdges.find(e=>e.cursor == obj.id)), cursor: obj.id, node: obj})), // todo this "find" will be slow... optimize
+          nodes: objs,
+          // filters: 
+          pageInfo: {
+            startCursor: objs[0].id,
+            endCursor: objs[objs.length - 1].id,
+            hasNextPage: false,
+            hasPreviousPage: false,
+          }
+        }
+      }
       if (parentType.name.endsWith("Connection") && info.path.key === "pageInfo" && typeof source[info.path.key] === "object") {
         return source[info.path.key]
       }
