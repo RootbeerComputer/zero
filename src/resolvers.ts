@@ -32,8 +32,8 @@ type DatabaseType = {
 }
 export const database: DatabaseType = {}; // Map<typeName, Map<id, object>>
 export const partialsDatabase: DatabaseType = {} // Map<typeName, Map<id, object>>
-export const unsassignedPartials = {} // Map<typeName, id[]>
-export const unsassignedFakeObjects = {} // Map<typeName, id[]>
+export const unassignedPartials = {} // Map<typeName, id[]>
+export const unassignedFakeObjects = {} // Map<typeName, id[]>
 const assignedPartialFakeObject: {[key: string]: {[key: string]: object}} = {}; // Map<assignedObjectId, object_extended_field_map>
 const assignedReferencedFakeObject: {[key: string]: {[key: string]: object}} = {}; // Map<objectId, Map<fieldname, fake_object_ref>>
 
@@ -221,9 +221,9 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
       }
       if (!(source["id"] in assignedPartialFakeObject)) { // TODO is there a better way than source['ID']?
         //@ts-ignore
-        assignedPartialFakeObject[source["id"]] = partialsDatabase[parentType.name][unsassignedPartials[parentType.name].pop()]
-        if (unsassignedPartials[parentType.name].length === 0) {
-          unsassignedPartials[parentType.name] = Object.keys(partialsDatabase[parentType.name])
+        assignedPartialFakeObject[source["id"]] = partialsDatabase[parentType.name][unassignedPartials[parentType.name].pop()]
+        if (unassignedPartials[parentType.name].length === 0) {
+          unassignedPartials[parentType.name] = Object.keys(partialsDatabase[parentType.name])
         }
       }
       return assignedPartialFakeObject[source["id"]][info.path.key]
@@ -260,12 +260,12 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         remoteType = assertCompositeType(remoteType)
         if (isListType(isNonNullType(fieldDef.type) ? fieldDef.type.ofType : fieldDef.type)) {
           // pop at most 4 elements.
-          assignedReferencedFakeObject[source["id"]][info.path.key] = unsassignedFakeObjects[remoteType.name].splice(-4, 4)
+          assignedReferencedFakeObject[source["id"]][info.path.key] = unassignedFakeObjects[remoteType.name].splice(-4, 4)
         } else {
-          assignedReferencedFakeObject[source["id"]][info.path.key] = unsassignedFakeObjects[remoteType.name].pop()
+          assignedReferencedFakeObject[source["id"]][info.path.key] = unassignedFakeObjects[remoteType.name].pop()
         }
-        if (unsassignedFakeObjects[remoteType.name].length === 0) {
-          unsassignedFakeObjects[remoteType.name] = Object.keys(database[remoteType.name]);
+        if (unassignedFakeObjects[remoteType.name].length === 0) {
+          unassignedFakeObjects[remoteType.name] = Object.keys(database[remoteType.name]);
         }
       }
       //@ts-ignore

@@ -14,7 +14,7 @@ import { Source, printSchema, GraphQLSchema } from 'graphql'; // astFromValue
 import { parseCLI } from './cli';
 import { getProxyExecuteFn } from './proxy';
 import { existsSync, readSDL, getRemoteSchema, createMockData } from './utils';
-import { fakeTypeResolver, fakeFieldResolver, database, partialsDatabase, unsassignedPartials, unsassignedFakeObjects } from './resolvers';
+import { fakeTypeResolver, fakeFieldResolver, database, partialsDatabase, unassignedPartials, unassignedFakeObjects } from './resolvers';
 import { ValidationErrors, buildWithFakeDefinitions } from './fake_definition';
 
 const log = console.log;
@@ -116,8 +116,8 @@ async function runServer(
   console.log(newPartialsDatabase)
   Object.assign(database,newDatabase); // graphql type is the key and then value is another dict from id to object
   Object.assign(partialsDatabase,newPartialsDatabase);
-  Object.assign(unsassignedPartials, Object.fromEntries(Object.entries(partialsDatabase).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
-  Object.assign(unsassignedFakeObjects, Object.fromEntries(Object.entries(database).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
+  Object.assign(unassignedPartials, Object.fromEntries(Object.entries(partialsDatabase).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
+  Object.assign(unassignedFakeObjects, Object.fromEntries(Object.entries(database).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
 
   app.options('/graphql', cors(corsOptions));
   app.use(
