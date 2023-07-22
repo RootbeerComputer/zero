@@ -176,4 +176,60 @@ describe('shopify', () => {
       });
     });
   });
+
+  test('nonconnection basic args', () => {
+    Object.assign(database,{
+      Product: {
+        "1": {id: "1", options: [4, 5, 6], title: ""},
+        "2": {id: "2", options: [4, 5, 6], title: "T Shirt"},
+        "3": {id: "3", options: [], title: "Metal Waist Belt"}
+      },
+      ProductOption: {
+        "4": {id: "4", name: "Size", values: ["Small", "Medium", "Large"]},
+        "5": {id: "5", name: "Color", values: ["Red", "Green", "Blue"]},
+        "6": {id: "6", name: "Material", values: ["Cotton", "Synthetic", "Wool"]}
+      },
+    });
+    Object.assign(unassignedFakeObjects, Object.fromEntries(Object.entries(database).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
+    return graphql({
+      schema: shopifySchema,
+      source: `
+        query {
+          p2: product(id: "2") {
+            title
+            options(first: 2) {
+              id
+              name
+              values
+            }
+          }
+          p3: product(id: "3") {
+            title
+            options(first: 2) {
+              id
+              name
+              values
+            }
+          }
+        }`,
+      typeResolver: fakeTypeResolver,
+      fieldResolver: fakeFieldResolver
+    }).then((result) => {
+      expect(result).toEqual({
+        data: {
+          p2: {
+            title: "T Shirt",
+            options: [
+              {id: "4", name: "Size", values: ["Small", "Medium", "Large"]},
+              {id: "5", name: "Color", values: ["Red", "Green", "Blue"]},
+            ]
+          },
+          p3: {
+            title: "Metal Waist Belt",
+            options: []
+          }
+        }
+      });
+    });
+  });
 });

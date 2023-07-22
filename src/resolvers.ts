@@ -124,6 +124,11 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     return resolved;
   }
 
+  let fieldDefUnwrappedType = fieldDef.type
+  if (isNonNullType(fieldDefUnwrappedType)) fieldDefUnwrappedType = fieldDefUnwrappedType.ofType
+  if (isListType(fieldDefUnwrappedType)) fieldDefUnwrappedType = fieldDefUnwrappedType.ofType
+  if (isNonNullType(fieldDefUnwrappedType)) fieldDefUnwrappedType = fieldDefUnwrappedType.ofType
+
   if (parentType === schema.getQueryType()) {
     if (resolved !== undefined) {
       return resolved; // its probably a object from the proxy server
@@ -214,7 +219,8 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         return queryHeuristics(out, args)
       }
     }
-  } else if (isNonNullType(fieldDef.type) ? isLeafType(fieldDef.type.ofType) : isLeafType(fieldDef.type)) {
+  } else if (isLeafType(fieldDefUnwrappedType)) {
+    // TODO need the above condition to trigger on list of leafs
     if ((fieldDef.extensions && fieldDef.extensions['isExtensionField'])) {
       if (resolved !== undefined) {
         return resolved;
@@ -233,7 +239,15 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     }
     // TODO handle undefined list elements when should be [Int!]! or [Int!]
     if (isListType(isNonNullType(fieldDef.type) ? fieldDef.type.ofType : fieldDef.type)) {
-      // TODO if resolved is undefined
+      if (isNonNullType(fieldDef.type)) {
+        if (resolved !== undefined && resolved !== null) {
+          return resolved;
+        } else {
+          throw Error(`Field ${fieldDef.name} is non null but resolved is ${resolved}`)
+        }
+      } else {
+        return resolved;
+      }
     } else {
       if (isNonNullType(fieldDef.type)) {
         if (resolved !== undefined && resolved !== null) {
@@ -291,15 +305,16 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
       if (source[info.path.key].length === 0) {
         return []
       }
-      if (parentType.name.endsWith("Connection") && (info.path.key === "nodes" || info.path.key === "edges") && typeof source[info.path.key][0] === "object") {
+      if (parentType.name.endsWith("Connection") && (info.path.key === "nodes" || info.path.key === "edges") && typeof source[info.path.key][0] === "object") { // TODO if source[info.path.key].length === 0 does this crash?
         return source[info.path.key]
       }
-      return source[info.path.key].map((id) => {
+      const objs = source[info.path.key].map((id) => {
         if (allowNull && id === null) {
           return null
         }
         return getObjectFromDatabaseWithId(id, listElementType, schema, source)
       })
+      return queryHeuristics(objs, args);
     } else {
       if (type.name.endsWith("Connection")) { // note: an alternative impl could be to pass down Connection args via context
         type = assertObjectType(type)
