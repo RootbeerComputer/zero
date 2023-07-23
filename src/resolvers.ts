@@ -72,38 +72,77 @@ export const fakeTypeResolver: GraphQLTypeResolver<unknown, unknown> = async (
   }
 };
 
-export const queryHeuristics = (data: any[], args: any) => {
+export const queryHeuristics = (data: any[], args: any, cursors: string[]) => {
   let ret = data;
   const order = args.order || args.orderBy || args.sortKey;
   const sort = args.sort || args.orderDirection || (args.reverse ? "desc" : undefined);
   const offset = args.offset || args.skip;
+  const after = args.after;
   const limit = args.limit || args.first;
-  if (order && sort) {
-    if (ret.length > 0) {
-      const actualKey = order in ret[0] ? order : (order.toLowerCase() in ret[0] ? order.toLowerCase() : undefined);
-      if (actualKey) {
-        ret.sort((a, b) => {
-          if (sort === "asc" || sort == "ASC") {
-            return a[actualKey] < b[actualKey] ? -1 : 1;
-          } else if (sort === "desc" || sort === "DESC") {
-            return b[actualKey] < a[actualKey] ? -1 : 1;
-          } else {
-            throw new Error("Invalid sort value. Must be 'asc' or 'desc'.");
-          }
-        });
-      } else {
-        console.log(`${order} field not in object`)
+  const hasPreviousPage = offset > 0 || after !== undefined;
+  let hasNextPage = false;
+  if (order && sort && ret.length > 0) {
+    const actualKey = order in ret[0] ? order : (order.toLowerCase() in ret[0] ? order.toLowerCase() : undefined);
+    if (actualKey) {
+      const sortedPairs = ret.map((val, idx)=>({val, cursor: cursors[idx]})).sort((a, b) => {
+        if (sort === "asc" || sort == "ASC") {
+          return a.val[actualKey] < b.val[actualKey] ? -1 : 1;
+        } else if (sort === "desc" || sort === "DESC") {
+          return b.val[actualKey] < a.val[actualKey] ? -1 : 1;
+        } else {
+          throw new Error("Invalid sort value. Must be 'asc' or 'desc'.");
+        }
+      })
+      for (var k = 0; k < sortedPairs.length; k++) {
+        ret[k] = sortedPairs[k].val
+        cursors[k] = sortedPairs[k].cursor
       }
+    } else {
+      console.log(`${order} field not in object`)
     }
   }
-  if (offset && limit) {
+  let startCursor = cursors[0]
+  let endCursor = cursors[cursors.length - 1]
+  if (after && limit) {
+    // TODO make IDs strings so we can use ===
+    const index = ret.findIndex((obj) => obj.id == after); // TODO should really be comparing to cursor not id, but we always set our cursor to ID. this is a problem though for scalars and objects w/o id
+    if (index === -1) {
+      throw new Error(`after cursor ${after} not found in data`)
+    }
+    hasNextPage = index + 1 + limit < ret.length;
+    startCursor = cursors[index + 1];
+    endCursor = cursors[index + 1 + limit - 1];
+    ret = ret.slice(index + 1, index + 1 + limit);
+  } else if (offset && limit) {
+    hasNextPage = offset + limit < ret.length;
+    startCursor = cursors[offset];
+    endCursor = cursors[offset + limit - 1];
     ret = ret.slice(offset, offset + limit);
   } else if (limit) {
+    hasNextPage = limit < ret.length;
+    endCursor = cursors[limit - 1]; // TODO add test case for when this is keyerror
     ret = ret.slice(0, limit);
   } else if (offset) {
+    startCursor = cursors[offset];
     ret = ret.slice(offset);
+  } else if (after) {
+    // TODO make IDs strings so we can use ===
+    const index = ret.findIndex((obj) => obj.id == after); // TODO should really be comparing to cursor not id, but we always set our cursor to ID. this is a problem though for scalars and objects w/o id
+    if (index === -1) {
+      throw new Error(`after cursor ${after} not found in data`)
+    }
+    startCursor = cursors[index + 1];
+    ret = ret.slice(index + 1);
   }
-  return ret
+  return {
+    objs: ret,
+    pageInfo: {
+      startCursor,
+      endCursor,
+      hasNextPage,
+      hasPreviousPage,
+    }
+  }
 }
 
 export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
@@ -126,8 +165,14 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
 
   let fieldDefUnwrappedType = fieldDef.type
   if (isNonNullType(fieldDefUnwrappedType)) fieldDefUnwrappedType = fieldDefUnwrappedType.ofType
-  if (isListType(fieldDefUnwrappedType)) fieldDefUnwrappedType = fieldDefUnwrappedType.ofType
+  if (isListType(fieldDefUnwrappedType)) fieldDefUnwrappedType = fieldDefUnwrappedType.ofType;
   if (isNonNullType(fieldDefUnwrappedType)) fieldDefUnwrappedType = fieldDefUnwrappedType.ofType
+
+  //@ts-ignore
+  if (fieldDefUnwrappedType.name === "StringConnection" || fieldDefUnwrappedType.name === "IntConnection" || fieldDefUnwrappedType.name === "FloatConnection" || fieldDefUnwrappedType.name === "BooleanConnection" || fieldDefUnwrappedType.name === "IDConnection") {
+    //@ts-ignore
+    throw Error(`Sorry, we don't support querying for primitive connections yet. This is on our roadmap. ${fieldDefUnwrappedType.name} on field ${fieldName}`)
+  }
 
   if (parentType === schema.getQueryType()) {
     if (resolved !== undefined) {
@@ -140,21 +185,18 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
     if (!isListType(t) && !args.id) {
       if (t.name.endsWith("Connection")) {
         const underlyingTypeName = t.name.replace(/Connection$/, "");
-        const objs = queryHeuristics(
-          Object.values(database[underlyingTypeName]).sort((a, b) => a.id - b.id),
-          args
+        const tempObjs = Object.values(database[underlyingTypeName]).sort((a, b) => a.id - b.id)
+        const {objs, pageInfo} = queryHeuristics(
+          tempObjs,
+          args,
+          tempObjs.map((obj) => obj.id)
         );
         return {
           // todo support ai generated primitives on this top level query Connection object and its edges/pageInfo
           edges: objs.map((obj) => ({cursor: obj.id, node: obj})),
           nodes: objs,
           // filters: 
-          pageInfo: {
-            startCursor: objs[0].id,
-            endCursor: objs[objs.length - 1].id,
-            hasNextPage: false,
-            hasPreviousPage: false,
-          }
+          pageInfo
         }
       } else {
         // TODO: these are heuristics, we should ask AI to infer biz logic
@@ -188,7 +230,8 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
             throw new Error(`Type ${t.name} not in database`)
           }
         }
-        return queryHeuristics(out, args)
+        const {objs} = queryHeuristics(out, args, out.map((obj) => obj.id))
+        return objs
       }
     } else {
       if (!isObjectType(t)) {
@@ -215,8 +258,9 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         }
         return database[t.name][args.id]
       } else {
-        const out = Object.values(database[t.name])
-        return queryHeuristics(out, args)
+        const out = Object.values(database[t.name]);
+        const {objs} = queryHeuristics(out, args, out.map((obj) => obj.id))
+        return objs;
       }
     }
   } else if (isLeafType(fieldDefUnwrappedType)) {
@@ -235,7 +279,7 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
       return assignedPartialFakeObject[source["id"]][info.path.key]
     }
     if (resolved === undefined && isNonNullType(fieldDef.type)) {
-      throw new Error("Type should be in parent field since it's a leaf and non root")
+      throw new Error(`the field, ${fieldDef.name}, should be in parent field since it's a leaf and non root and nonnull`)
     }
     // TODO handle undefined list elements when should be [Int!]! or [Int!]
     if (isListType(isNonNullType(fieldDef.type) ? fieldDef.type.ofType : fieldDef.type)) {
@@ -308,13 +352,14 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
       if (parentType.name.endsWith("Connection") && (info.path.key === "nodes" || info.path.key === "edges") && typeof source[info.path.key][0] === "object") { // TODO if source[info.path.key].length === 0 does this crash?
         return source[info.path.key]
       }
-      const objs = source[info.path.key].map((id) => {
+      const temp = source[info.path.key].map((id) => {
         if (allowNull && id === null) {
           return null
         }
         return getObjectFromDatabaseWithId(id, listElementType, schema, source)
       })
-      return queryHeuristics(objs, args);
+      const {objs} = queryHeuristics(temp, args, temp.map((obj) => obj.id));
+      return objs
     } else {
       if (type.name.endsWith("Connection")) { // note: an alternative impl could be to pass down Connection args via context
         type = assertObjectType(type)
@@ -324,13 +369,13 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
         if (!underlyingType) throw new Error(`Type ${underlyingTypeName} not in schema`)
         if (!isCompositeType(underlyingType)) throw new Error(`Type ${underlyingTypeName} is not a composite type for connection ${type.name}`)
         const connectionObj = getObjectFromDatabaseWithId(source[info.path.key],type,schema, source);
-        let objs = connectionObj['nodes'].map((id) => {
+        let temp = connectionObj['nodes'].map((id) => {
           if (allowNull && id === null) {
             return null
           }
           return getObjectFromDatabaseWithId(id, underlyingType, schema, source)
         })
-        objs = queryHeuristics(objs, args)
+        const {objs, pageInfo} = queryHeuristics(temp, args, temp.map((obj) => obj.id));
         const connectionObjsEdges = connectionObj['edges'].map((id) => {
           if (allowNull && id === null) {
             return null
@@ -348,12 +393,7 @@ export const fakeFieldResolver: GraphQLFieldResolver<unknown, unknown> = async (
             (obj) => ({...(connectionObjsEdges.find(e=>e.cursor == obj.id)), cursor: obj.id, node: obj})), // todo this "find" will be slow... optimize
           nodes: objs,
           // filters: 
-          pageInfo: {
-            startCursor: objs[0].id,
-            endCursor: objs[objs.length - 1].id,
-            hasNextPage: false,
-            hasPreviousPage: false,
-          }
+          pageInfo
         }
       }
       if (parentType.name.endsWith("Connection") && info.path.key === "pageInfo" && typeof source[info.path.key] === "object") {

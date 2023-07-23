@@ -60,7 +60,7 @@ Releasing super early and unpolished. There's a 20% chance this works with your 
 - [ ] directives (starting with popular standards)
 - [ ] mutations (including file uploads and auth)
 - [ ] subscriptions
-- [x] graphql connections spec
+- [x] pagination
 
 ## How it works
 
