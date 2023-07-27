@@ -1,0 +1,15 @@
+{
+  "name": "staging-environment",
+  "source": "mongodb://mongodb0.example.com:27017",
+  "destination": "mongodb://mongodb0.example.com:27017",
+  "subset": 0.2,
+  "sensitive": {
+    "user_table": {
+      "firstname": true,
+      "lastname": true
+    },
+    "transactions": {
+      "credit_card": true
+    }
+  }
+}
