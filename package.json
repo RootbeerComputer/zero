@@ -1,6 +1,6 @@
 {
   "name": "@rootbeer/zero",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Mock your GraphQL API with AI generated faked data... zero config",
   "main": "dist/index.js",
   "bin": {
