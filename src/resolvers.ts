@@ -75,7 +75,8 @@ export const fakeTypeResolver: GraphQLTypeResolver<unknown, unknown> = async (
 export const queryHeuristics = (data: any[], args: any, cursors: string[]) => {
   let ret = data;
   const order = args.order || args.orderBy || args.sortKey;
-  const sort = args.sort || args.orderDirection || (args.reverse ? "desc" : undefined);
+  const sort = args.sort || args.orderDirection || (args.reverse ? "desc" : "asc");
+  console.log("order", order, sort)
   const offset = args.offset || args.skip;
   const after = args.after;
   const limit = args.limit || args.first;

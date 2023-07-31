@@ -7,8 +7,9 @@ import {
 import * as fs from 'fs';
 import * as path from 'path';
 
-let graphqlSdl = fs.readFileSync(path.join(__dirname, '../../examples/shopify.graphql'), 'utf-8');
-const shopifySchema = buildASTSchema(parse(graphqlSdl));
+const fileToSchema = (filename: string) => buildASTSchema(parse(fs.readFileSync(path.join(__dirname, filename), 'utf-8')))
+const shopifySchema = fileToSchema('../../examples/shopify.graphql')
+const linearSchema = fileToSchema('../../examples/linear.graphql')
 
 describe('Query Params Heuristics', () => {
   afterEach(() => {
@@ -470,6 +471,109 @@ describe('shopify', () => {
       errors: [
         new GraphQLError("the field, supported, should be in parent field since it's a leaf and non root and nonnull")
       ]
+    });
+  });
+});
+
+describe('linear', () => {
+  afterEach(() => {
+    Object.assign(database,{});
+    Object.assign(unassignedFakeObjects,{});
+  });
+
+  test('toplevel pagination', async () => {
+    Object.assign(database,{ProjectMilestone: {"1": {id: "1", name: "Art of War", updatedAt: "2016-03-01T13:10:20Z"}, "2": {id: "2", name: "Three Body Problem", updatedAt: "2016-02-01T13:10:20Z"}, "3": {id: "3", name: "Wandering Earth", updatedAt: "2016-01-01T13:10:20Z"}}});
+    Object.assign(unassignedFakeObjects, Object.fromEntries(Object.entries(database).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
+    const result = await graphql({
+      schema: linearSchema,
+      source: `
+        query {
+          ProjectMilestones(first: 2, orderBy: updatedAt) {
+            edges {
+              node {
+                id
+                name
+              }
+            }
+            nodes {
+              id
+              name
+            }
+            pageInfo {
+              endCursor
+              startCursor
+            }
+          }
+        }`,
+      typeResolver: fakeTypeResolver,
+      fieldResolver: fakeFieldResolver
+    })
+    expect(result.data.ProjectMilestones.edges.map(e => e.node)).toEqual(result.data.ProjectMilestones.nodes);
+    expect(result).toEqual({
+      data: {
+        ProjectMilestones: {
+          edges: [
+            {node: {id: "3", name: "Wandering Earth"}},
+            {node: {id: "2", name: "Three Body Problem"}},
+          ],
+          nodes: [
+            {id: "3", name: "Wandering Earth"},
+            {id: "2", name: "Three Body Problem"},
+          ],
+          pageInfo: {
+            endCursor: "2",
+            startCursor: "3"
+          }
+        }
+      }
+    });
+    // new args this time
+    const result2 = await graphql({
+      schema: shopifySchema,
+      source: `
+        query {
+          articles(after: "1", reverse: false) {
+            edges {
+              node {
+                id
+                title
+              }
+            }
+            nodes {
+              id
+              title
+            }
+            pageInfo {
+              endCursor
+              startCursor
+              hasNextPage
+              hasPreviousPage
+            }
+          }
+        }`,
+      typeResolver: fakeTypeResolver,
+      fieldResolver: fakeFieldResolver
+    })
+    expect(result2.data.articles.edges.map(e => e.node)).toEqual(result2.data.articles.nodes);
+    expect(result2).toEqual({
+      data: {
+        articles: {
+          edges: [
+            {node: {id: "2", title: "Three Body Problem"}},
+            {node: {id: "3", title: "Wandering Earth"}},
+          ],
+          nodes: [
+            {id: "2", title: "Three Body Problem"},
+            {id: "3", title: "Wandering Earth"},
+          ],
+          pageInfo: {
+            startCursor: "2",
+            endCursor: "3",
+            hasNextPage: false,
+            hasPreviousPage: true
+          }
+        }
+      }
     });
   });
 });
