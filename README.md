@@ -64,7 +64,11 @@ Releasing super early and unpolished. There's a 20% chance this works with your 
 
 ## How it works
 
-This CLI tool sends our server an introspection AST of your GraphQL SDL (including docstrings). Our server runs fancy AI algorithms to create a blob of mock data, which gets sent back to the CLI tool. From then on, all queries are executed locally on your machine. We mock at the GraphQL level so it's data source agnostic and client agnostic (Apollo, iOS, Java, etc).
+**We don't see any sensitive data.** This makes it easy to use in high security environments (i.e. SOC2).
+
+This CLI tool sends your GraphQL schema definition language (~~including docstrings~~) to us. Our server parses the schema and runs fancy AI algorithms to create a blob of mock data, which gets sent back to the CLI tool. From then on, all queries are executed locally on your machine. We mock at the GraphQL level so it's data source agnostic and client agnostic (Apollo, iOS, Java, etc).
+
+Some have asked about a Postgres edition. Reach out if this interests you.
 
 ## Contribute
 
