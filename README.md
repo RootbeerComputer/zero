@@ -18,7 +18,7 @@ Example schemas are provided in the `examples` folder
 
 ```
 npm install -g @rootbeer/zero
-zero schema.graphql
+zero schema.graphql # replace with your schema
 ```
 
 Then swap out the URL in your frontend code with
