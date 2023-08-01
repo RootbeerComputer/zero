@@ -576,4 +576,45 @@ describe('linear', () => {
       }
     });
   });
+
+
+  test('get item on id field String instead of ID', () => {
+    Object.assign(database,{
+      CustomView: {
+        "1a": {id: "1a", organization: 4, name: "Belts"},
+        "2a": {id: "2a", organization: 5, name: "Shoes and Socks"},
+        "3a": {id: "3a", organization: 5, name: "rovers"},
+      },
+      Organization: {
+        "4": {id: "4"},
+        "5": {id: "5"},
+      }
+    });
+    Object.assign(unassignedFakeObjects, Object.fromEntries(Object.entries(database).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
+    return graphql({
+      schema: linearSchema,
+      source: `
+        query {
+          customView(id: "2a") {
+            name
+            organization {
+              id
+            }
+          }
+        }`,
+      typeResolver: fakeTypeResolver,
+      fieldResolver: fakeFieldResolver
+    }).then((result) => {
+      expect(result).toEqual({
+        data: {
+          customView: {
+            name: "Shoes and Socks",
+            organization: {
+              id: "5"
+            }
+          }
+        }
+      });
+    });
+  });
 });
