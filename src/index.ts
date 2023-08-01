@@ -112,8 +112,6 @@ async function runServer(
 
   console.log("Starting to load from server")
   const {newDatabase, newPartialsDatabase} = await createMockData(schema, newTypes, extendedFields);
-  console.log(newDatabase)
-  console.log(newPartialsDatabase)
   Object.assign(database,newDatabase); // graphql type is the key and then value is another dict from id to object
   Object.assign(partialsDatabase,newPartialsDatabase);
   Object.assign(unassignedPartials, Object.fromEntries(Object.entries(partialsDatabase).map(([typename, object_map]) => [typename, Object.keys(object_map)])))
